@@ -27,3 +27,8 @@
 *.exe
 *.out
 *.app
+bin/*
+
+# Explicit to-ignores
+*.ignore
+jegyzet.txt
