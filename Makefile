@@ -3,8 +3,8 @@ ObjSuf = o
 ExeSuf = 
 
 CXX       = g++
-CXXFLAGS  = -Wall
-LIBS      =
+CXXFLAGS  = -Wall -std=c++11
+LIBS      = -lGL -lGLU -lglut
 LD        = g++
 LDFLAGS   = -Wall
 OutPutOpt = -o # +whitespace
