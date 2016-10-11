@@ -16,16 +16,18 @@ using glm::vec3;
 class Particle: public Drawable
 {
 	protected:
+		float radius;
 		vec3  position;
 		vec3  velocity;
 		vec3  force;
 		float mass;
-		float radius;
+		vec3  color;
 	public:
-		Particle()                                                                                                    { radius   = 1; position = vec3(0, 0, 0); velocity = vec3(0, 0, 0); }
-		Particle(float radiusArg):                                                   Particle()                       { radius   = radiusArg; }
-		Particle(float radiusArg, const vec3& positionArg):                          Particle(radiusArg)              { position = positionArg; velocity = vec3(0, 0, 0); }
-		Particle(float radiusArg, const vec3& positionArg, const vec3& velocityArg): Particle(radiusArg, positionArg) { velocity = velocityArg;}
+		Particle():                                                                                        radius(1),         position(vec3(0, 0, 0)), velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+		Particle(float radiusArg):                                                                         radius(radiusArg), position(vec3(0, 0, 0)), velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+		Particle(float radiusArg, const vec3& positionArg):                                                radius(radiusArg), position(positionArg),   velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+		Particle(float radiusArg, const vec3& positionArg, const vec3& velocityArg):                       radius(radiusArg), position(positionArg),   velocity(velocityArg),   color(vec3(0.7, 0.7, 0.7)) {}
+		Particle(float radiusArg, const vec3& positionArg, const vec3& velocityArg, const vec3& colorArg): radius(radiusArg), position(positionArg),   velocity(velocityArg),   color(colorArg)            {}
 		virtual ~Particle() = default;
 		virtual void update(float dt)
 		{
@@ -34,6 +36,7 @@ class Particle: public Drawable
 		}
 		virtual void display()
 		{
+			glColor3f(color.x, color.y, color.z);
 			glPushMatrix();
 			glTranslatef(position.x, position.y, position.z);
 			glutSolidSphere(radius, 10, 10);
