@@ -33,7 +33,6 @@ void mouseMotionCB(int x, int y);
 void mousePassiveMotionCB(int x, int y);
 void exitCB();
 
-
 void initGL();
 int  initGLUT(int argc, char **argv);
 void initLights();
@@ -43,6 +42,10 @@ void drawString3D(const char *str, float pos[3], float color[4], void *font);
 void showInfo();
 void toOrtho();
 void toPerspective();
+
+void initParticles();
+void calculateForces();
+void updateParticles(const float& dt);
 
 // constants
 const int   SCREEN_WIDTH    = 400;
@@ -54,21 +57,24 @@ const int   CUBE_ROWS       = 3;
 const int   CUBE_COLS       = 4;
 const int   CUBE_SLICES     = 3;
 const float CAMERA_DISTANCE = 17.0f;
+const float FRAME_RATE      = 50.0f;
+const float UPDATE_INTERVAL = 1000.0f / FRAME_RATE;
 
 namespace Globals
 {
-	void              *font = GLUT_BITMAP_8_BY_13;
-	int               screenWidth;
-	int               screenHeight;
-	bool              mouseLeftDown;
-	bool              mouseRightDown;
-	float             mouseX;
-	float             mouseY;
-	float             cameraDistance;
-	float             cameraAngleX;
-	float             cameraAngleY;
-	int               drawMode;
-	int               hitId;
+	void                                          *font = GLUT_BITMAP_8_BY_13;
+	int                                           screenWidth;
+	int                                           screenHeight;
+	bool                                          mouseLeftDown;
+	bool                                          mouseRightDown;
+	float                                         mouseX;
+	float                                         mouseY;
+	float                                         cameraDistance;
+	float                                         cameraAngleX;
+	float                                         cameraAngleY;
+	int                                           drawMode;
+	std::vector<std::shared_ptr<Drawable>>        particlesToDraw;
+	std::vector<std::shared_ptr<ChargedParticle>> chargedParticles;
 	bool initGlobals()
 	{
 		screenWidth = SCREEN_WIDTH;
@@ -78,7 +84,6 @@ namespace Globals
 		mouseLeftDown = mouseRightDown = false;
 		mouseX = mouseY = 0;
 		drawMode = 0;
-		hitId = -1;
 		return true;
 	}
 }
@@ -101,7 +106,7 @@ int initGLUT(int argc, char **argv)
 	glutInitWindowPosition(100, 100);
 	int handle = glutCreateWindow(argv[0]);
 	glutDisplayFunc(displayCB);
-	glutTimerFunc(33, timerCB, 33);
+	glutTimerFunc(UPDATE_INTERVAL, timerCB, UPDATE_INTERVAL);
 	glutReshapeFunc(reshapeCB);
 	glutKeyboardFunc(keyboardCB);
 	glutMouseFunc(mouseCB);
@@ -132,6 +137,7 @@ void initGL()
 	glClearDepth(1.0f);       // 0 is near, 1 is far
 	glDepthFunc(GL_LEQUAL);
 	initLights();
+	initParticles();
 	float white[] = {1, 1, 1, 1};
 	glMaterialf(GL_FRONT_AND_BACK, GL_SHININESS, 128);
 	glMaterialfv(GL_FRONT_AND_BACK, GL_SPECULAR, white);
@@ -210,9 +216,9 @@ void showInfo()
 	// for print infos
 	std::stringstream ss;
 	ss << "Mouse: (" << Globals::mouseX << ", " << Globals::mouseY << ")";
-	drawString(ss.str().c_str(), 2, Globals::screenHeight-TEXT_HEIGHT, color, Globals::font);
+	drawString(ss.str().c_str(),  2, Globals::screenHeight-TEXT_HEIGHT, color, Globals::font);
 	ss.str("");
-	ss << "Hit Cube ID: " << Globals::hitId;
+	ss << "Hit Cube ID: " << "...";
 	drawString(ss.str().c_str(), 2, Globals::screenHeight-(TEXT_HEIGHT*2), color, Globals::font);
 	ss.str("");
 	ss << "Move the mouse over a cube.";
@@ -255,12 +261,42 @@ void toPerspective()
 	glLoadIdentity();
 }
 
-void drawSphere()
+void initParticles()
 {
-	glPushMatrix();
-	glTranslatef(0, 0, 0);
-	glutSolidSphere(1.2, 20, 50);
-	glPopMatrix();
+	std::shared_ptr<Drawable> proton_1   = std::make_shared<Proton>(  vec3( 1, 0,  1));
+	std::shared_ptr<Drawable> proton_2   = std::make_shared<Proton>(  vec3( 1, 0, -1));
+	std::shared_ptr<Drawable> electron_1 = std::make_shared<Electron>(vec3(-1, 0, 0), vec3(0, 5, 0));
+	Globals::particlesToDraw.push_back(proton_1);
+	Globals::particlesToDraw.push_back(proton_2);
+	Globals::particlesToDraw.push_back(electron_1);
+	Globals::chargedParticles.push_back(std::dynamic_pointer_cast<ChargedParticle>(electron_1));
+	Globals::chargedParticles.push_back(std::dynamic_pointer_cast<ChargedParticle>(proton_1));
+	Globals::chargedParticles.push_back(std::dynamic_pointer_cast<ChargedParticle>(proton_2));
+	// Globals::chargedParticles.push_back(proton_1);
+}
+
+void calculateForces()
+{
+	// Electrostatically interacting particles
+	for(auto firstParticle = Globals::chargedParticles.begin(); firstParticle != Globals::chargedParticles.end(); ++firstParticle)
+	{
+		vec3 potential(0, 0, 0);
+		for(auto secondParticle = Globals::chargedParticles.begin(); secondParticle != Globals::chargedParticles.end(); ++secondParticle)
+		{
+			if(firstParticle == secondParticle) continue;
+			potential += (*secondParticle) -> getPotentialAt((*firstParticle) -> getPosition());
+		}
+		(*firstParticle) -> calculateForceFromPotential(potential);
+	}
+}
+
+void updateParticles(const float& dt)
+{
+	// Electrostatically interacting particles
+	for(const auto& particle: Globals::chargedParticles)
+	{
+		particle -> update(dt);
+	}
 }
 
 ///////////////
@@ -277,14 +313,9 @@ void displayCB()
 	glTranslatef(0, 0, -Globals::cameraDistance);
 	glRotatef(Globals::cameraAngleX, 1, 0, 0);   // pitch
 	glRotatef(Globals::cameraAngleY, 0, 1, 0);   // heading
-	std::vector<std::shared_ptr<Drawable>> objectsToDraw;
-	std::shared_ptr<Drawable> electron_1 = std::make_shared<Electron>(vec3(-1, 0, 0));
-	std::shared_ptr<Drawable> electron_2 = std::make_shared<Proton>(  vec3( 1, 0, 0));
-	objectsToDraw.push_back(electron_1);
-	objectsToDraw.push_back(electron_2);
-	for(const auto& object: objectsToDraw)
+	for(const auto& particle: Globals::particlesToDraw)
 	{
-		object -> display();
+		particle -> display();
 	}
 	showInfo();
 	glPopMatrix();
@@ -293,7 +324,7 @@ void displayCB()
 
 void reshapeCB(int width, int height)
 {
-	Globals::screenWidth = width;
+	Globals::screenWidth  = width;
 	Globals::screenHeight = height;
 	toPerspective();
 }
@@ -301,6 +332,8 @@ void reshapeCB(int width, int height)
 void timerCB(int millisec)
 {
 	glutTimerFunc(millisec, timerCB, millisec);
+	calculateForces();
+	updateParticles(millisec * 1e-3);
 	glutPostRedisplay();
 }
 
