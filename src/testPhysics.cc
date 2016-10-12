@@ -218,10 +218,10 @@ void showInfo()
 	ss << "Mouse: (" << Globals::mouseX << ", " << Globals::mouseY << ")";
 	drawString(ss.str().c_str(),  2, Globals::screenHeight-TEXT_HEIGHT, color, Globals::font);
 	ss.str("");
-	ss << "Hit Cube ID: " << "...";
+	// ss << "Hit Cube ID: " << "...";
 	drawString(ss.str().c_str(), 2, Globals::screenHeight-(TEXT_HEIGHT*2), color, Globals::font);
 	ss.str("");
-	ss << "Move the mouse over a cube.";
+	ss << "Click and drag to pan.";
 	drawString(ss.str().c_str(), 2, 2, color, Globals::font);
 	ss.str("");
 	// unset floating format
@@ -263,12 +263,13 @@ void toPerspective()
 
 void initParticles()
 {
-	std::shared_ptr<Drawable> proton_1   = std::make_shared<Proton>(  vec3( 1, 0,  1));
-	std::shared_ptr<Drawable> proton_2   = std::make_shared<Proton>(  vec3( 1, 0, -1));
 	std::shared_ptr<Drawable> electron_1 = std::make_shared<Electron>(vec3(-1, 0, 0), vec3(0, 5, 0));
+	// Movement on plane z = 0
+	std::shared_ptr<Drawable> proton_1   = std::make_shared<Proton>(  vec3( 1,  2, 0));
+	std::shared_ptr<Drawable> proton_2   = std::make_shared<Proton>(  vec3( 1, -2, 0));
+	Globals::particlesToDraw.push_back(electron_1);
 	Globals::particlesToDraw.push_back(proton_1);
 	Globals::particlesToDraw.push_back(proton_2);
-	Globals::particlesToDraw.push_back(electron_1);
 	Globals::chargedParticles.push_back(std::dynamic_pointer_cast<ChargedParticle>(electron_1));
 	Globals::chargedParticles.push_back(std::dynamic_pointer_cast<ChargedParticle>(proton_1));
 	Globals::chargedParticles.push_back(std::dynamic_pointer_cast<ChargedParticle>(proton_2));
@@ -334,6 +335,17 @@ void timerCB(int millisec)
 	glutTimerFunc(millisec, timerCB, millisec);
 	calculateForces();
 	updateParticles(millisec * 1e-3);
+	auto& electron_1 = *(Globals::chargedParticles[0]);
+	// Reset electron position
+	if(glm::length(electron_1.getPosition()) > 10)
+	{
+		electron_1.setPosition(vec3(-10, rand() / static_cast<double>(RAND_MAX) * 12 - 6, 0));
+		electron_1.setVelocity(vec3( 5, rand() / static_cast<double>(RAND_MAX) * 8 - 4, rand() / static_cast<double>(RAND_MAX) * 8 - 4));
+	}
+	auto& proton_1 = *(Globals::chargedParticles[1]);
+	auto& proton_2 = *(Globals::chargedParticles[2]);
+	proton_1.setPosition(vec3( 1,  2, 0));
+	proton_2.setPosition(vec3( 1, -2, 0));
 	glutPostRedisplay();
 }
 

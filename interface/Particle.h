@@ -46,6 +46,9 @@ class Particle: public Drawable
 			velocity(velocityArg), color(colorArg) {}
 		virtual ~Particle() = default;
 		vec3 getPosition() const { return position; }
+		void setPosition(const vec3& positionArg) { position = positionArg; }
+		vec3 getVelocity() const { return velocity; }
+		void setVelocity(const vec3& velocityArg) { velocity = velocityArg; }
 		virtual void update(const float& dt)
 		{
 			position += dt * velocity;
