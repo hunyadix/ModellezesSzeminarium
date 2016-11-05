@@ -12,7 +12,7 @@
 #include <iomanip>
 #include <vector>
 #include <memory>
-#include <glm/glm.hpp>
+// #include <glm/glm.hpp>
 
 #include "../interface/Electron.h"
 #include "../interface/Proton.h"
@@ -54,9 +54,6 @@ const int   SCREEN_HEIGHT           = 300;
 const int   TEXT_WIDTH              = 8;
 const int   TEXT_HEIGHT             = 13;
 const float FOV_Y                   = 60.0f;
-const int   CUBE_ROWS               = 3;
-const int   CUBE_COLS               = 4;
-const int   CUBE_SLICES             = 3;
 const float CAMERA_DISTANCE         = 17.0f;
 const float FRAME_RATE              = 50.0f;
 const float UPDATE_INTERVAL         = 1000.0f / FRAME_RATE;
@@ -273,9 +270,9 @@ void initParticles()
 void calculateForces()
 {
 	// Electrostatically interacting particles
-	for(auto& chargedParticle: ChargedParticle::chargedParticleCollection)
+	for(auto& particle: ChargedParticle::chargedParticleCollection)
 	{
-		chargedParticle -> calculateForceFromChargedParticleCollection(ChargedParticle::chargedParticleCollection);
+		particle -> calculateForceFromChargedParticleCollection(ChargedParticle::chargedParticleCollection);
 	}
 }
 
@@ -324,17 +321,17 @@ void timerCB(int millisec)
 	calculateForces();
 	updateParticles(millisec * 1e-3);
 	// Reset electron position
-	auto& electron_1 = *(ChargedParticle::chargedParticleCollection[0]);
-	if(glm::length(electron_1.getPosition()) > 10)
+	auto& electron_1 = ChargedParticle::chargedParticleCollection[0];
+	if(glm::length(electron_1 -> getPosition()) > 10)
 	{
-		electron_1.setPosition(vec3(-10, rand() / static_cast<double>(RAND_MAX) * 12 - 6, 0));
-		electron_1.setVelocity(vec3( 5, rand() / static_cast<double>(RAND_MAX) * 8 - 4, rand() / static_cast<double>(RAND_MAX) * 8 - 4));
+		electron_1 -> setPosition(vec3(-10, rand() / static_cast<double>(RAND_MAX) * 12 - 6, 0));
+		electron_1 -> setVelocity(vec3( 5, rand() / static_cast<double>(RAND_MAX) * 8 - 4, rand() / static_cast<double>(RAND_MAX) * 8 - 4));
 	}
 	// Reset proton position
-	auto& proton_1 = *(ChargedParticle::chargedParticleCollection[1]);
-	auto& proton_2 = *(ChargedParticle::chargedParticleCollection[2]);
-	proton_1.setPosition(vec3( 1,  2, 0));
-	proton_2.setPosition(vec3( 1, -2, 0));
+	auto& proton_1 = ChargedParticle::chargedParticleCollection[1];
+	auto& proton_2 = ChargedParticle::chargedParticleCollection[2];
+	proton_1 -> setPosition(vec3( 1,  2, 0));
+	proton_2 -> setPosition(vec3( 1, -2, 0));
 	glutPostRedisplay();
 }
 

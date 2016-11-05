@@ -13,32 +13,32 @@ class ChargedParticle: public Particle
 		ChargedParticle():
 		Particle(), charge(0) 
 		{
-			chargedParticleCollection.push_back(std::shared_ptr<ChargedParticle>(this));
+			chargedParticleCollection.push_back(this);
 		}
 		ChargedParticle(const float& radiusArg, const float& chargeArg):
 		Particle(radiusArg), charge(chargeArg) 
 		{
-			chargedParticleCollection.push_back(std::shared_ptr<ChargedParticle>(this));
+			chargedParticleCollection.push_back(this);
 		}
 		ChargedParticle(const float& radiusArg, const float& chargeArg, const float& massArg):
 		Particle(radiusArg, massArg), charge(chargeArg) 
 		{
-			chargedParticleCollection.push_back(std::shared_ptr<ChargedParticle>(this));
+			chargedParticleCollection.push_back(this);
 		}
 		ChargedParticle(const float& radiusArg, const float& chargeArg, const float& massArg, const vec3& positionArg):
 		Particle(radiusArg, massArg, positionArg), charge(chargeArg) 
 		{
-			chargedParticleCollection.push_back(std::shared_ptr<ChargedParticle>(this));
+			chargedParticleCollection.push_back(this);
 		}
 		ChargedParticle(const float& radiusArg, const float& chargeArg, const float& massArg, const vec3& positionArg, const vec3& velocityArg):
 		Particle(radiusArg, massArg, positionArg, velocityArg), charge(chargeArg) 
 		{
-			chargedParticleCollection.push_back(std::shared_ptr<ChargedParticle>(this));
+			chargedParticleCollection.push_back(this);
 		}
 		ChargedParticle(const float& radiusArg, const float& chargeArg, const float& massArg, const vec3& positionArg, const vec3& velocityArg, const vec3& color):
 		Particle(radiusArg, massArg, positionArg, velocityArg, color), charge(chargeArg) 
 		{
-			chargedParticleCollection.push_back(std::shared_ptr<ChargedParticle>(this));
+			chargedParticleCollection.push_back(this);
 		}
 		virtual ~ChargedParticle() = default;
 		float getCharge() const
@@ -53,12 +53,12 @@ class ChargedParticle: public Particle
 		{
 			force = -charge * potential;
 		}
-		void calculateForceFromChargedParticleCollection(const std::vector<std::shared_ptr<ChargedParticle>>& chargedParticleCollection)
+		void calculateForceFromChargedParticleCollection(const std::vector<ChargedParticle*>& chargedParticleCollection)
 		{
 			vec3 potential(0, 0, 0);
 			for(const auto& particle: chargedParticleCollection)
 			{
-				if(particle.get() == this) continue;
+				if(particle == this) continue;
 				potential += particle -> getPotentialAt(position);
 			}
 			return calculateForceFromPotential(potential);
@@ -72,9 +72,9 @@ class ChargedParticle: public Particle
 		{
 			return charge * glm::length(potential);
 		}
-		static std::vector<std::shared_ptr<ChargedParticle>> chargedParticleCollection;
+		static std::vector<ChargedParticle*> chargedParticleCollection;
 };
 
-std::vector<std::shared_ptr<ChargedParticle>> ChargedParticle::chargedParticleCollection;
+std::vector<ChargedParticle*> ChargedParticle::chargedParticleCollection;
 
 #endif

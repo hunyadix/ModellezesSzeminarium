@@ -1,13 +1,17 @@
-SrcSuf = cc
-ObjSuf = o
-ExeSuf = 
+include Makefile.arch
 
-CXX       = g++ -g
-CXXFLAGS  = -Wall -std=c++11
-LIBS      = -lGL -lGLU -lglut
-LD        = g++
-LDFLAGS   = -Wall -Wextra
-OutPutOpt = -o # +whitespace
+SrcSuf = cc
+# ObjSuf = o
+# ExeSuf = 
+
+# CXX       = g++ -g
+# CXXFLAGS  = -Wall -std=c++11
+CXXFLAGS  += -std=c++1y
+# LIBS      = -lGL -lGLU -lglut
+LIBS      += -lGL -lGLU -lglut
+# LD        = g++
+# LDFLAGS   = -Wall -Wextra
+# OutPutOpt = -o # +whitespace
 
 CONSOLECOLORS_S = ../../src/ConsoleColors.$(SrcSuf)
 CONSOLECOLORS_O = ./obj/ConsoleColors.$(ObjSuf)
