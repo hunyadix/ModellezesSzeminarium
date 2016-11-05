@@ -5,7 +5,7 @@
 
 class Proton: public ChargedParticle
 {
-	private:
+	public:
 		static constexpr float protonCharge = 1.602176e-19f;
 		static constexpr float protonMass   = 1.672e-27;
 	public:

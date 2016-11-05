@@ -25,30 +25,52 @@ class Particle: public Drawable
 	public:
 		Particle():
 			radius(1.0f), mass(1.0e6f), position(vec3(0.0, 0.0, 0.0)),
-			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		Particle(const float& radiusArg):
 			radius(radiusArg), mass(1.0e6f), position(vec3(0, 0, 0)),
-			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		Particle(const float& radiusArg, const float& massArg):
 			radius(radiusArg), mass(massArg), position(vec3(0, 0, 0)),
-			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		Particle(const float& radiusArg, const vec3& positionArg):
 			radius(radiusArg), mass(1e6), position(positionArg),
-			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		Particle(const float& radiusArg, const float& massArg, const vec3& positionArg):
 			radius(radiusArg), mass(massArg), position(positionArg),
-			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) {}
+			velocity(vec3(0, 0, 0)), color(vec3(0.7, 0.7, 0.7)) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		Particle(const float& radiusArg, const float& massArg, const vec3& positionArg, const vec3& velocityArg):
 			radius(radiusArg), mass(massArg), position(positionArg),
-			velocity(velocityArg), color(vec3(0.7, 0.7, 0.7)) {}
+			velocity(velocityArg), color(vec3(0.7, 0.7, 0.7)) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		Particle(const float& radiusArg, const float& massArg, const vec3& positionArg, const vec3& velocityArg, const vec3& colorArg):
 			radius(radiusArg), mass(massArg), position(positionArg),
-			velocity(velocityArg), color(colorArg) {}
+			velocity(velocityArg), color(colorArg) 
+			{
+				particleCollection.push_back(std::shared_ptr<Particle>(this));
+			}
 		virtual ~Particle() = default;
 		vec3 getPosition() const { return position; }
 		void setPosition(const vec3& positionArg) { position = positionArg; }
 		vec3 getVelocity() const { return velocity; }
 		void setVelocity(const vec3& velocityArg) { velocity = velocityArg; }
+		float getKineticEnergy() const { return 0.5f * mass * glm::dot(velocity, velocity); }
 		virtual void update(const float& dt)
 		{
 			position += dt * velocity;
@@ -63,6 +85,10 @@ class Particle: public Drawable
 			glPopMatrix();
 		}
 		virtual void calculateForceFromPotential(const vec3& potential) = 0;
+		virtual float calculatePotentialEnergy(const vec3& potential) const = 0;
+		static std::vector<std::shared_ptr<Particle>> particleCollection;
 };
+
+std::vector<std::shared_ptr<Particle>> Particle::particleCollection;
 
 #endif
