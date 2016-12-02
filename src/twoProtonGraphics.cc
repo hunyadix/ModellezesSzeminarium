@@ -17,6 +17,26 @@
 #include "../interface/Electron.h"
 #include "../interface/Proton.h"
 
+static void screenshot_ppm(const char *filename, unsigned int width, unsigned int height, GLubyte **pixels)
+{
+    size_t i, j, cur;
+    const size_t format_nchannels = 3;
+    FILE *f = fopen(filename, "w");
+    fprintf(f, "P3\n%d %d\n%d\n", width, height, 255);
+    *pixels = (GLubyte*)realloc(*pixels, format_nchannels * sizeof(GLubyte) * width * height);
+    glReadPixels(0, 0, width, height, GL_RGB, GL_UNSIGNED_BYTE, *pixels);
+    for (i = 0; i < height; i++)
+    {
+        for (j = 0; j < width; j++) 
+        {
+            cur = format_nchannels * ((height - i - 1) * width + j);
+            fprintf(f, "%3d %3d %3d ", (*pixels)[cur], (*pixels)[cur + 1], (*pixels)[cur + 2]);
+        }
+        fprintf(f, "\n");
+    }
+    fclose(f);
+}
+
 using glm::vec3;
 
 ////////////////////////
@@ -103,8 +123,8 @@ int initGLUT(int argc, char **argv)
 	glutInitWindowPosition(100, 100);
 	int handle = glutCreateWindow(argv[0]);
 	glutDisplayFunc(displayCB);
-	glutTimerFunc(UPDATE_INTERVAL, timerCB, UPDATE_INTERVAL);
-	glutTimerFunc(CONSOLE_UPDATE_INTERVAL, timerConsoleCB, CONSOLE_UPDATE_INTERVAL);
+	// glutTimerFunc(UPDATE_INTERVAL, timerCB, UPDATE_INTERVAL);
+	// glutTimerFunc(CONSOLE_UPDATE_INTERVAL, timerConsoleCB, CONSOLE_UPDATE_INTERVAL);
 	glutReshapeFunc(reshapeCB);
 	glutKeyboardFunc(keyboardCB);
 	glutMouseFunc(mouseCB);
@@ -291,6 +311,7 @@ void updateParticles(const float& dt)
 
 void displayCB()
 {
+	static int saved = 0;
 	// clear framebuffer
 	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
 	// save the initial ModelView matrix before modifying ModelView matrix
@@ -306,6 +327,15 @@ void displayCB()
 	showInfo();
 	glPopMatrix();
 	glutSwapBuffers();
+	if(saved == 0)
+	{
+		GLubyte *pixels = NULL;
+		std::string filename = "tmp1.ppm";
+		screenshot_ppm(filename.c_str(), Globals::screenWidth, Globals::screenHeight, &pixels);
+		free(pixels);
+		std::cout << "Saved." << std::endl;
+		saved++;
+	}
 }
 
 void reshapeCB(int width, int height)

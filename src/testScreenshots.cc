@@ -17,6 +17,8 @@
 #include "../interface/Electron.h"
 #include "../interface/Proton.h"
 
+#include <SDL2/SDL.h>
+
 using glm::vec3;
 
 static void screenshot_ppm(const char *filename, unsigned int width, unsigned int height, GLubyte **pixels)
@@ -80,31 +82,50 @@ const float CAMERA_DISTANCE = 17.0f;
 const float FRAME_RATE      = 50.0f;
 const float UPDATE_INTERVAL = 1000.0f / FRAME_RATE;
 
-int main(int argc, char **argv)
+void displayCB()
 {
-	// atexit(exitCB);
-	initGLUT(argc, argv);
-	initGL();
-	glutMainLoop();
-	return 0;
+	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
+	glPushMatrix();
+	glTranslatef(0, 0, -CAMERA_DISTANCE);
+	glRotatef(0.0f, 1, 0, 0);   // pitch
+	glRotatef(0.0f, 0, 1, 0);   // heading
+	for(const auto& particle: Particle::particleCollection)
+	{
+		particle -> display();
+	}
+	glPopMatrix();
+	glutSwapBuffers();
 }
 
-int initGLUT(int argc, char **argv)
+void physicsMain(int)
 {
+	int numIteration = 0;
+	while(1)
+	{
+		calculateForces();
+		updateParticles(1000 * 1e-5);
+		numIteration++;
+		if(numIteration % 10000 == 0)
+		{
+			displayCB();
+			std::cout << numIteration / 10000 << std::endl;
+		}
+	}
+}
+
+int main(int argc, char **argv)
+{
+	initGL();
 	glutInit(&argc, argv);
 	glutInitDisplayMode(GLUT_RGBA | GLUT_DOUBLE | GLUT_DEPTH | GLUT_STENCIL);
 	glutInitWindowSize(SCREEN_WIDTH, SCREEN_HEIGHT);
 	glutInitWindowPosition(100, 100);
-	int handle = glutCreateWindow(argv[0]);
+	glutCreateWindow(argv[0]);
 	glutDisplayFunc(displayCB);
-	glutTimerFunc(UPDATE_INTERVAL, timerCB, UPDATE_INTERVAL);
 	toPerspective();
-	// glutReshapeFunc(reshapeCB);
-	// glutKeyboardFunc(keyboardCB);
-	// glutMouseFunc(mouseCB);
-	// glutMotionFunc(mouseMotionCB);
-	// glutPassiveMotionFunc(mousePassiveMotionCB);
-	return handle;
+	glutTimerFunc(0.0, physicsMain, 0);
+	glutMainLoop();
+	return 0;
 }
 
 void initGL()
@@ -193,38 +214,6 @@ void setCamera(float posX, float posY, float posZ, float targetX, float targetY,
 	gluLookAt(posX, posY, posZ, targetX, targetY, targetZ, 0, 1, 0); // eye(x,y,z), focal(x,y,z), up(x,y,z)
 }
 
-// // display info messages
-// void showInfo()
-// {
-// 	// backup current model-view matrix
-// 	glPushMatrix();                                                 // save current modelview matrix
-// 	glLoadIdentity();                                               // reset modelview matrix
-// 	// set to 2D orthogonal projection
-// 	glMatrixMode(GL_PROJECTION);                                    // switch to projection matrix
-// 	glPushMatrix();                                                 // save current projection matrix
-// 	glLoadIdentity();                                               // reset projection matrix
-// 	gluOrtho2D(0, SCREEN_WIDTH, 0, SCREEN_HEIGHT);  // set to orthogonal projection
-// 	float color[4] = {1, 1, 0, 1};
-// 	// for print infos
-// 	std::stringstream ss;
-// 	ss << "Mouse: (" << Globals::mouseX << ", " << Globals::mouseY << ")";
-// 	drawString(ss.str().c_str(),  2, SCREEN_HEIGHT-TEXT_HEIGHT, color, Globals::font);
-// 	ss.str("");
-// 	// ss << "Hit Cube ID: " << "...";
-// 	drawString(ss.str().c_str(), 2, SCREEN_HEIGHT-(TEXT_HEIGHT*2), color, Globals::font);
-// 	ss.str("");
-// 	ss << "Click and drag to pan.";
-// 	drawString(ss.str().c_str(), 2, 2, color, Globals::font);
-// 	ss.str("");
-// 	// unset floating format
-// 	ss << std::resetiosflags(std::ios_base::fixed | std::ios_base::floatfield);
-// 	// restore projection matrix
-// 	glPopMatrix();                   // restore to previous projection matrix
-// 	// restore modelview matrix
-// 	glMatrixMode(GL_MODELVIEW);      // switch to modelview matrix
-// 	glPopMatrix();                   // restore to previous modelview matrix
-// }
-
 // set projection matrix as orthogonal
 void toOrtho()
 {
@@ -284,154 +273,3 @@ void updateParticles(const float& dt)
 		particle -> update(dt);
 	}
 }
-
-///////////////
-// CALLBACKS //
-///////////////
-
-void displayCB()
-{
-	static int saved = 0;
-	// clear framebuffer
-	glClear(GL_COLOR_BUFFER_BIT | GL_DEPTH_BUFFER_BIT | GL_STENCIL_BUFFER_BIT);
-	// save the initial ModelView matrix before modifying ModelView matrix
-	glPushMatrix();
-	// tramsform camera
-	glTranslatef(0, 0, -CAMERA_DISTANCE);
-	glRotatef(0.0f, 1, 0, 0);   // pitch
-	glRotatef(0.0f, 0, 1, 0);   // heading
-	for(const auto& particle: Particle::particleCollection)
-	{
-		particle -> display();
-	}
-	if(saved == 0)
-	{
-		GLubyte *pixels = NULL;
-		std::string filename = "tmp1.ppm";
-		screenshot_ppm(filename.c_str(), SCREEN_WIDTH, SCREEN_HEIGHT, &pixels);
-		free(pixels);
-		std::cout << "Saved." << std::endl;
-		saved++;
-	}
-	// showInfo();
-	glPopMatrix();
-	glutSwapBuffers();
-}
-
-// void reshapeCB(int width, int height)
-// {
-// 	SCREEN_WIDTH  = width;
-// 	SCREEN_HEIGHT = height;
-// 	toPerspective();
-// }
-
-void timerCB(int millisec)
-{
-	glutTimerFunc(millisec, timerCB, millisec);
-	calculateForces();
-	updateParticles(millisec * 1e-3);
-	// auto& electron_1 = *(ChargedParticle::chargedParticleCollection[0]);
-	// // Reset electron position
-	// if(glm::length(electron_1.getPosition()) > 10)
-	// {
-	// 	electron_1.setPosition(vec3(-10, rand() / static_cast<double>(RAND_MAX) * 12 - 6, 0));
-	// 	electron_1.setVelocity(vec3( 5, rand() / static_cast<double>(RAND_MAX) * 8 - 4, rand() / static_cast<double>(RAND_MAX) * 8 - 4));
-	// }
-	// auto& proton_1 = *(ChargedParticle::chargedParticleCollection[1]);
-	// auto& proton_2 = *(ChargedParticle::chargedParticleCollection[2]);
-	// proton_1.setPosition(vec3( 1,  2, 0));
-	// proton_2.setPosition(vec3( 1, -2, 0));
-	glutPostRedisplay();
-}
-
-// void idleCB()
-// {
-// 	glutPostRedisplay();
-// }
-
-// void keyboardCB(unsigned char key, int x, int y)
-// {
-// 	switch(key)
-// 	{
-// 		case 27: // ESCAPE
-// 			exit(0);
-// 			break;
-// 		// switch rendering modes (fill -> wire -> point)
-// 		case 'd': 
-// 		case 'D':
-// 			Globals::drawMode = (Globals::drawMode + 1) % 3;
-// 			if(Globals::drawMode == 0)        // fill mode
-// 			{
-// 				glPolygonMode(GL_FRONT_AND_BACK, GL_FILL);
-// 				glEnable(GL_DEPTH_TEST);
-// 				glEnable(GL_CULL_FACE);
-// 			}
-// 			else if(Globals::drawMode == 1)  // wireframe mode
-// 			{
-// 				glPolygonMode(GL_FRONT_AND_BACK, GL_LINE);
-// 				glDisable(GL_DEPTH_TEST);
-// 				glDisable(GL_CULL_FACE);
-// 			}
-// 			else                             // point mode
-// 			{
-// 				glPolygonMode(GL_FRONT_AND_BACK, GL_POINT);
-// 				glDisable(GL_DEPTH_TEST);
-// 				glDisable(GL_CULL_FACE);
-// 			}
-// 			break;
-// 	}
-// }
-
-
-// void mouseCB(int button, int state, int x, int y)
-// {
-// 	Globals::mouseX = x;
-// 	Globals::mouseY = y;
-// 	if(button == GLUT_LEFT_BUTTON)
-// 	{
-// 		if(state == GLUT_DOWN)
-// 			Globals::mouseLeftDown = true;
-// 		else if(state == GLUT_UP)
-// 			Globals::mouseLeftDown = false;
-// 	}
-// 	else if(button == GLUT_RIGHT_BUTTON)
-// 	{
-// 		if(state == GLUT_DOWN)
-// 			Globals::mouseRightDown = true;
-// 		else if(state == GLUT_UP)
-// 			Globals::mouseRightDown = false;
-// 	}
-// }
-
-// void mouseMotionCB(int x, int y)
-// {
-// 	if(Globals::mouseLeftDown)
-// 	{
-// 		Globals::cameraAngleY += (x - Globals::mouseX);
-// 		Globals::cameraAngleX += (y - Globals::mouseY);
-// 		Globals::mouseX = x;
-// 		Globals::mouseY = y;
-// 	}
-// 	if(Globals::mouseRightDown)
-// 	{
-// 		Globals::cameraDistance -= (y - Globals::mouseY) * 0.2f;
-// 		Globals::mouseY = y;
-// 	}
-// }
-
-
-// void mousePassiveMotionCB(int x, int y)
-// {
-// 	Globals::mouseX = x;
-// 	Globals::mouseY = y;
-// 	// draw cubes with GL_SELECT mode and select a cube
-// 	if(!Globals::mouseLeftDown && !Globals::mouseRightDown)
-// 	{
-// 		// Globals::hitId = selectCube();
-// 	}
-// }
-
-// void exitCB() 
-// {
-// 	std::cout << "Process exited normally. Terminating..." << std::endl;
-// }
