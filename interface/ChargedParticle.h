@@ -8,7 +8,9 @@ class ChargedParticle: public Particle
 {
 	protected:
 		float charge;
-		static constexpr float coulombConstant = 8.99e9;
+		static constexpr float vacuumPermittivity = 0.079577f;
+		// static constexpr float coulombConstant = 1.0f / (4.0f * 3.1415926f * vacuumPermittivity);
+		static constexpr float coulombConstant = 1.0f;
 	public:
 		ChargedParticle():
 		Particle(), charge(0) 
