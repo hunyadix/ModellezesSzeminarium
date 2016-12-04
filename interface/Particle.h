@@ -64,6 +64,7 @@ class Particle: public Drawable
 		float mass;
 		vec3  position;
 		vec3  velocity;
+		// vec3  acceleration = vec3(0.0, 0.0, 0.0);
 		vec3  force;
 		vec3  color;
 	public:
@@ -114,11 +115,10 @@ class Particle: public Drawable
 		void setPosition(const vec3& positionArg) { position = positionArg; }
 		vec3 getVelocity() const { return velocity; }
 		void setVelocity(const vec3& velocityArg) { velocity = velocityArg; }
-		float getKineticEnergy() const { return 0.5f * mass * glm::dot(velocity, velocity); }
+		float calculateKineticEnergy() const { return 0.5f * mass * glm::dot(velocity, velocity); }
 		virtual void update(const float& dt)
 		{
-			position += dt * velocity;
-			velocity += dt * force / mass;
+			std::cout << "Error: Update unimplemented for class Particle(). Consider calling a child's method." << std::endl;
 		}
 		virtual void display() const
 		{

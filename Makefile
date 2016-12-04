@@ -9,8 +9,8 @@ SDL_INCLUDE = -I/usr/local/include
 
 # CXX       = g++-5 -g
 # CXXFLAGS  = -Wall -std=c++11
-CXXFLAGS  += -std=c++1y $(SDL_INCLUDE)
-# CXXFLAGS  += -std=c++1y -fdiagnostics-color=always
+# CXXFLAGS  += -std=c++1y $(SDL_INCLUDE)
+CXXFLAGS  += -std=c++1y $(SDL_INCLUDE) -fdiagnostics-color=always
 # LIBS      = -lGL -lGLU -lglut
 LIBS      += -lGL -lGLU -lglut -lGLEW $(SDL_LIB)
 # LIBS      += -lGL -lGLU -lglut -lGLEW -lavcodec -lswscale -lavutil

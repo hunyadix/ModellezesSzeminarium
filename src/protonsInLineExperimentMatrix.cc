@@ -19,6 +19,7 @@
 #include <TH2D.h>
 #include <TApplication.h>
 #include <TCanvas.h>
+#include <TText.h>
 
 #include "../interface/Electron.h"
 #include "../interface/Proton.h"
@@ -30,33 +31,32 @@
 // Constants
 
 // const float COULOMB_CONSTANT                     = ChargedParticle::coulombConstant; // 1.00f
-const float SPEED_OF_LIGHT                        = 137;
-const float ELECTRON_CHARGE                       = Electron::electronCharge;                // -1.0f
-const float ELECTRON_MASS                         = Electron::electronMass;                  // 1.0f
-const float PROTON_CHARGE                         = Proton::protonCharge;                    // +1.0f
-const float PROTON_MASS                           = Proton::protonMass;                      // 1836.153f;
-const float HARTREE_ENERGY_IN_EV                  = 27.211386f;
-const float EV_TO_VELOCITY_SQUARED                = 2.0f / HARTREE_ENERGY_IN_EV;
-const float HIDROGEN_BOND_LENGTH                  = 1.3983899f;                              // in Bohrs
-
-const int   NUM_EXPERIMENTS_PER_SETUP             = 10000;
-const float DT_STEP                               = 1.0e-2f;
-const float NUM_UPDATES_TO_CONSIDER_ELEC_ABSORBED = 1e4;
-// const float DT_STEP                               = 1.0e-18f;
-const int   NUMBER_OF_PROTONS                     = 2;                                       // should be even
-const float PROTON_PROTON_DISTANCE                = HIDROGEN_BOND_LENGTH;
-const float ELECTRON_START_PLANE_DISTANCE         = 5.0f * HIDROGEN_BOND_LENGTH;
-const float ELECTRON_END_PLANE_DISTANCE           = 5.0f * HIDROGEN_BOND_LENGTH;
-const float ELECTRON_START_KINETIC_ENERGY_EV_MIN  = 1;
-const float ELECTRON_START_KINETIC_ENERGY_EV_MAX  = 15;
-const float ELECTRON_START_KINETIC_ENERGY_EV_STEP = 1;
-const int   ELECTRON_START_KIN_EN_NUM_MEAS_POINTS = std::floor((ELECTRON_START_KINETIC_ENERGY_EV_MAX - ELECTRON_START_KINETIC_ENERGY_EV_MIN) / ELECTRON_START_KINETIC_ENERGY_EV_STEP) + 1;
+constexpr float SPEED_OF_LIGHT                        = 137;
+constexpr float ELECTRON_CHARGE                       = Electron::electronCharge;                // -1.0f
+constexpr float ELECTRON_MASS                         = Electron::electronMass;                  // 1.0f
+constexpr float PROTON_CHARGE                         = Proton::protonCharge;                    // +1.0f
+constexpr float PROTON_MASS                           = Proton::protonMass;                      // 1836.153f;
+constexpr float HARTREE_ENERGY_IN_EV                  = 27.211386f;
+constexpr float EV_TO_VELOCITY_SQUARED                = 2.0f / HARTREE_ENERGY_IN_EV;
+constexpr float HIDROGEN_BOND_LENGTH                  = 1.3983899f;                              // in Bohrs
+constexpr float DT_STEP                               = 1.0e-1f;
+constexpr int   NUM_EXPERIMENTS_PER_SETUP             = 1000;
+constexpr int   NUM_UPDATES_BEFORE_ABSORBTION_TESTING = 1e3;
+constexpr int   NUM_ITERATIONS_BETWEEN_ABS_TESTS      = 1e2;
+constexpr int   NUMBER_OF_PROTONS                     = 2;                                       // should be even
+constexpr float PROTON_PROTON_DISTANCE                = HIDROGEN_BOND_LENGTH;
+constexpr float ELECTRON_START_PLANE_DISTANCE         = 50.0f * HIDROGEN_BOND_LENGTH;
+constexpr float ELECTRON_END_PLANE_DISTANCE           = 100.0f * HIDROGEN_BOND_LENGTH;
+constexpr float ELECTRON_START_KINETIC_ENERGY_EV_MIN  = 300;
+constexpr float ELECTRON_START_KINETIC_ENERGY_EV_MAX  = 2000;
+constexpr float ELECTRON_START_KINETIC_ENERGY_EV_STEP = 100;
+constexpr int   ELECTRON_START_KIN_EN_NUM_MEAS_POINTS = std::floor((ELECTRON_START_KINETIC_ENERGY_EV_MAX - ELECTRON_START_KINETIC_ENERGY_EV_MIN) / ELECTRON_START_KINETIC_ENERGY_EV_STEP) + 1;
 
 
 // Histogram definition
-const float END_POS_MIN_RANGE = -4.0f * PROTON_PROTON_DISTANCE; 
-const float END_POS_MAX_RANGE = +4.0f * PROTON_PROTON_DISTANCE;
-const float END_POS_NUM_BINS  = 200;
+constexpr float END_POS_MIN_RANGE = -30.0f * PROTON_PROTON_DISTANCE; 
+constexpr float END_POS_MAX_RANGE = +30.0f * PROTON_PROTON_DISTANCE;
+constexpr float END_POS_NUM_BINS  = 600;
 
 // Test for 6 protons; positions in p-p distances: -2.5, -1.5, -0.5, 0.5, 1.5, 2.5
 constexpr float protonPosition(int index) { return (-0.5f * NUMBER_OF_PROTONS + index + 0.5f) * PROTON_PROTON_DISTANCE; } 
@@ -117,8 +117,8 @@ void        setElectronStartPositionVelocity(const int& numSetup);
 void        initExperiment(const int& numSetup);
 // void        calculateForces();
 // void        updateParticles(const float& dt);
-const vec3& runExperiment(int & numUpdates);
-void        clearExperiment();
+const vec3 runExperiment(int& numUpdates, int& experimentSuccesful);
+void       clearExperiment();
 
 TApplication* theApp = nullptr;
 
@@ -136,8 +136,7 @@ void physicsMain()
 	std::cout << "\n";
 	printPhysicsInfo();
 	std::cout << "\n";
-	// TH1D electronPositionsX ("electronPositionsX",  "Electron positions X",  200, -PROTON_PROTON_DISTANCE, PROTON_PROTON_DISTANCE);
-	// TH2D electronPositionsXY("electronPositionsXY", "Electron positions XY", 200, -PROTON_PROTON_DISTANCE, PROTON_PROTON_DISTANCE, 200, -PROTON_PROTON_DISTANCE, PROTON_PROTON_DISTANCE);
+	std::vector<std::shared_ptr<TH1D>> electronPositionsX_V;
 	TH2D electronEnergyEndPositionsX_H ("electronEnergyEndPositionsX",  "Electron end position distribution vs starting kin. energy;x pos(bohr);starting kin. energy (eV)",  
 		END_POS_NUM_BINS,                      END_POS_MIN_RANGE,                                                                  END_POS_MAX_RANGE,
 		ELECTRON_START_KIN_EN_NUM_MEAS_POINTS, ELECTRON_START_KINETIC_ENERGY_EV_MIN - 0.5 * ELECTRON_START_KINETIC_ENERGY_EV_STEP, ELECTRON_START_KINETIC_ENERGY_EV_MAX + 0.5 * ELECTRON_START_KINETIC_ENERGY_EV_STEP);
@@ -150,17 +149,25 @@ void physicsMain()
 	{
 		totalNumUpdates  .push_back(0);
 		electronsAbsorbed.push_back(0);
+		int errorTriggered = 0;
+		electronPositionsX_V.emplace_back(std::make_shared<TH1D>(("electronPositionsX" + std::to_string(measurementPointIndex)).c_str(),  "Electron positions X",  END_POS_NUM_BINS, END_POS_MIN_RANGE, END_POS_MAX_RANGE));
 		const auto& startKineticEnergyFillPos = ELECTRON_START_KIN_ENERGIES[measurementPointIndex];
 		Pbar experimentProgress;
 		for(int experimentNumber = 0; experimentNumber < NUM_EXPERIMENTS_PER_SETUP; ++experimentNumber)
 		{
 			int numUpdates = 0;
+			int experimentSuccesful = 0;
 			initExperiment(measurementPointIndex);
-			vec3 electronHitPosition = runExperiment(numUpdates);
+			vec3 electronHitPosition = runExperiment(numUpdates, experimentSuccesful);
 			clearExperiment();
-			if(numUpdates == -1)
+			if(!experimentSuccesful)
 			{
 				electronsAbsorbed.back()++;
+				if(!errorTriggered && NUM_EXPERIMENTS_PER_SETUP / 2 < electronsAbsorbed.back())
+				{
+					errorTriggered = 1;
+					std::cout << "Warning: more than half of the electrons were already absorbed in this configuration." << std::endl;
+				}
 				experimentNumber -= 1;
 				continue;
 			}
@@ -173,6 +180,7 @@ void physicsMain()
 			// 	std::cout << experimentNumber * 100.0f / NUM_EXPERIMENTS << '%' << std::endl;
 			}
 			// std::cout << "Filling at: " << electronHitPosition.x << ", " << startKineticEnergyFillPos << std::endl; std::cin.get();
+			electronPositionsX_V.back() -> Fill(electronHitPosition.x);
 			electronEnergyEndPositionsX_H.Fill(electronHitPosition.x, startKineticEnergyFillPos);
 			totalNumUpdates.back() += numUpdates;
 		}
@@ -187,6 +195,14 @@ void physicsMain()
 	canvas.cd();
 	electronEnergyEndPositionsX_H.Draw("COLZ");
 	canvas.Print("matrix.eps");
+	for(auto electronHitPosition: electronPositionsX_V)
+	{
+		TCanvas xPosCanvas(electronHitPosition -> GetName(), electronHitPosition -> GetTitle(), 200, 200, 400, 300);
+		xPosCanvas.cd();
+		electronHitPosition -> SetFillColor(38);
+		electronHitPosition -> Draw("BHIST");
+		xPosCanvas.Print((xPosCanvas.GetName() + std::string(".eps")).c_str());
+	}
 	theApp -> Run();
 }
 
@@ -209,7 +225,7 @@ void setElectronStartPositionVelocity(const int& numSetup)
 	// -2.5  -1.5  -0.5   0.5   1.5   2.5
 	//   p     p     p*****p     p     p
 	// Calc: -0.5 + uniform_rand(0, 1)
-	x = rand() / static_cast<double>(RAND_MAX) * 4.0f * PROTON_PROTON_DISTANCE - 2.0f * PROTON_PROTON_DISTANCE;
+	x = rand() / static_cast<double>(RAND_MAX) * 8.0f * PROTON_PROTON_DISTANCE - 4.0f * PROTON_PROTON_DISTANCE;
 	y = ELECTRON_START_PLANE_DISTANCE;
 	z = 0.0f;
 	vx = 0.0f;
@@ -233,9 +249,24 @@ void initExperiment(const int& numSetup)
 	setElectronStartPositionVelocity(numSetup);
 }
 
+TH2D sampleElectron_path_H ("a",  "Electron path;x pos(bohr);y pos(bohr)",  
+	2000, END_POS_MIN_RANGE, END_POS_MAX_RANGE,
+	2000, -ELECTRON_END_PLANE_DISTANCE, ELECTRON_START_PLANE_DISTANCE);
+TH2D proton_positons_H("b",  "",  
+	2000, END_POS_MIN_RANGE, END_POS_MAX_RANGE,
+	2000, -ELECTRON_END_PLANE_DISTANCE, ELECTRON_START_PLANE_DISTANCE);
+
 // Contains calculations for the scattering processes
-const vec3& runExperiment(int& numUpdates)
+const vec3 runExperiment(int& numUpdates, int& experimentSuccesful)
 {
+	// static int numExp = 0;
+	proton_positons_H.SetMarkerStyle(8);
+	proton_positons_H.SetMarkerSize (1.5);
+	proton_positons_H.SetMarkerColor(kRed);
+	for(const auto& protonPosition: PROTONPOSITIONS)
+	{
+		proton_positons_H.Fill(protonPosition, 0);
+	}
 	numUpdates = 0;
 	while(1)
 	{
@@ -246,15 +277,35 @@ const vec3& runExperiment(int& numUpdates)
 		const vec3& electronPosition = electron -> getPosition();
 		if(electronPosition.y < -ELECTRON_END_PLANE_DISTANCE)
 		{
+			// if(numExp++ == 10.0)
+			// {
+			// 	TCanvas canvas;
+			// 	canvas.cd();
+			// 	sampleElectron_path_H.Draw();
+			// 	proton_positons_H.Draw("SAME");
+			// 	canvas.Print("a.eps");
+			// 	std::cout << "Done." << std::endl;
+			// 	std::cin.get();
+			// }
+			experimentSuccesful = 1; // No errors
 			return electronPosition;
 		}
-		if(NUM_UPDATES_TO_CONSIDER_ELEC_ABSORBED < numUpdates)
+		if(NUM_UPDATES_BEFORE_ABSORBTION_TESTING <= numUpdates)
 		{
-			numUpdates = -1;
-			// std::cout << "Electron absorbed: " << electronPosition.x << ", " << electronPosition.y << ", " << electronPosition.z << std::endl;
-			// std::cin.get();
-			return electronPosition;
+			// Check if the electron is absorbed
+			if(numUpdates % NUM_ITERATIONS_BETWEEN_ABS_TESTS == 0)
+			{
+				if(electron -> calculatePotentialEnergy() + electron -> calculateKineticEnergy() < 0)
+				{
+					// std::cout << "Electron kin. energy: " << electron -> calculateKineticEnergy()   << std::endl;
+					// std::cout << "Electron pot. energy: " << electron -> calculatePotentialEnergy() << std::endl;
+					experimentSuccesful = 0; // When the experiment is not succesful: repeat it with different starting conditions
+					return electronPosition;
+					// std::cout << "Electron absorbed: " << electronPosition.x << ", " << electronPosition.y << ", " << electronPosition.z << std::endl;
+				}
+			}
 		}
+		sampleElectron_path_H.Fill(electronPosition.x, electronPosition.y);
 	}
 }
 
