@@ -123,10 +123,6 @@ class ChargedParticle: public Particle
 		}
 };
 
-// n++;
-// t = t + dt;
-// t_array.push( t );
-
 std::vector<ChargedParticle*> ChargedParticle::chargedParticleCollection;
 
 #endif

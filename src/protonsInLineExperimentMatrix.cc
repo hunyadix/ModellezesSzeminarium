@@ -20,6 +20,7 @@
 #include <TApplication.h>
 #include <TCanvas.h>
 #include <TText.h>
+#include <TError.h>
 
 #include "../interface/Electron.h"
 #include "../interface/Proton.h"
@@ -39,24 +40,39 @@ constexpr float PROTON_MASS                           = Proton::protonMass;     
 constexpr float HARTREE_ENERGY_IN_EV                  = 27.211386f;
 constexpr float EV_TO_VELOCITY_SQUARED                = 2.0f / HARTREE_ENERGY_IN_EV;
 constexpr float HIDROGEN_BOND_LENGTH                  = 1.3983899f;                              // in Bohrs
-constexpr float DT_STEP                               = 1.0e-1f;
+constexpr float DT_STEP                               = 1.0e-2f;
 constexpr int   NUM_EXPERIMENTS_PER_SETUP             = 1000;
 constexpr int   NUM_UPDATES_BEFORE_ABSORBTION_TESTING = 1e3;
 constexpr int   NUM_ITERATIONS_BETWEEN_ABS_TESTS      = 1e2;
-constexpr int   NUMBER_OF_PROTONS                     = 2;                                       // should be even
+constexpr int   NUMBER_OF_PROTONS                     = 20;                                       // should be even
 constexpr float PROTON_PROTON_DISTANCE                = HIDROGEN_BOND_LENGTH;
-constexpr float ELECTRON_START_PLANE_DISTANCE         = 50.0f * HIDROGEN_BOND_LENGTH;
+constexpr float ELECTRON_START_X_POS_MIN              = -4.0f * HIDROGEN_BOND_LENGTH;
+constexpr float ELECTRON_START_X_POS_MAX              = +4.0f * HIDROGEN_BOND_LENGTH;
+constexpr float ELECTRON_START_PLANE_DISTANCE         = 50.0f  * HIDROGEN_BOND_LENGTH;
 constexpr float ELECTRON_END_PLANE_DISTANCE           = 100.0f * HIDROGEN_BOND_LENGTH;
-constexpr float ELECTRON_START_KINETIC_ENERGY_EV_MIN  = 300;
-constexpr float ELECTRON_START_KINETIC_ENERGY_EV_MAX  = 2000;
+constexpr float ELECTRON_START_KINETIC_ENERGY_EV_MIN  = 1000;
+constexpr float ELECTRON_START_KINETIC_ENERGY_EV_MAX  = 1000;
 constexpr float ELECTRON_START_KINETIC_ENERGY_EV_STEP = 100;
 constexpr int   ELECTRON_START_KIN_EN_NUM_MEAS_POINTS = std::floor((ELECTRON_START_KINETIC_ENERGY_EV_MAX - ELECTRON_START_KINETIC_ENERGY_EV_MIN) / ELECTRON_START_KINETIC_ENERGY_EV_STEP) + 1;
 
-
 // Histogram definition
-constexpr float END_POS_MIN_RANGE = -30.0f * PROTON_PROTON_DISTANCE; 
-constexpr float END_POS_MAX_RANGE = +30.0f * PROTON_PROTON_DISTANCE;
-constexpr float END_POS_NUM_BINS  = 600;
+constexpr int   SAVE_POSITION_DISTRIBUTIONS           = 1;
+constexpr float END_POS_MIN_RANGE                     = -30.0f * PROTON_PROTON_DISTANCE; 
+constexpr float END_POS_MAX_RANGE                     = +30.0f * PROTON_PROTON_DISTANCE;
+constexpr float END_POS_NUM_BINS                      = 600;
+
+// Screenshots/video
+constexpr int   SAVE_2D_SCREENSHOTS                   = 1;
+constexpr float ELECTRON_START_Z_POS_MIN              = -0.05f * HIDROGEN_BOND_LENGTH;                 // only matters when SAVE_2D_SCREENSHOTS is set
+constexpr float ELECTRON_START_Z_POS_MAX              = +0.05f * HIDROGEN_BOND_LENGTH;                 // only matters when SAVE_2D_SCREENSHOTS is set
+constexpr float SCREENSHOTS_X_POS_MIN_RANGE           = END_POS_MIN_RANGE;
+constexpr float SCREENSHOTS_X_POS_MAX_RANGE           = END_POS_MAX_RANGE;
+constexpr float SCREENSHOTS_X_BIN_NUMBER              = 6000;
+constexpr float SCREENSHOTS_Z_POS_MIN_RANGE           = END_POS_MIN_RANGE;
+constexpr float SCREENSHOTS_Z_POS_MAX_RANGE           = END_POS_MAX_RANGE;
+constexpr float SCREENSHOTS_Z_BIN_NUMBER              = 6000;
+constexpr float SCREENSHOTS_MARKERSIZES               = 0.5;
+
 
 // Test for 6 protons; positions in p-p distances: -2.5, -1.5, -0.5, 0.5, 1.5, 2.5
 constexpr float protonPosition(int index) { return (-0.5f * NUMBER_OF_PROTONS + index + 0.5f) * PROTON_PROTON_DISTANCE; } 
@@ -117,6 +133,7 @@ void        setElectronStartPositionVelocity(const int& numSetup);
 void        initExperiment(const int& numSetup);
 // void        calculateForces();
 // void        updateParticles(const float& dt);
+void       drawSampleElectronPaths(const int& numPaths);
 const vec3 runExperiment(int& numUpdates, int& experimentSuccesful);
 void       clearExperiment();
 
@@ -153,6 +170,11 @@ void physicsMain()
 		electronPositionsX_V.emplace_back(std::make_shared<TH1D>(("electronPositionsX" + std::to_string(measurementPointIndex)).c_str(),  "Electron positions X",  END_POS_NUM_BINS, END_POS_MIN_RANGE, END_POS_MAX_RANGE));
 		const auto& startKineticEnergyFillPos = ELECTRON_START_KIN_ENERGIES[measurementPointIndex];
 		Pbar experimentProgress;
+		TH2D screenshots_H(("screenshots_" + std::to_string(measurementPointIndex)).c_str(),  "Electron hit positions on plane ;x pos(bohr);z pos (bohr)",  
+			SCREENSHOTS_X_BIN_NUMBER, SCREENSHOTS_X_POS_MIN_RANGE, SCREENSHOTS_X_POS_MAX_RANGE, SCREENSHOTS_Z_BIN_NUMBER, SCREENSHOTS_Z_POS_MIN_RANGE, SCREENSHOTS_Z_POS_MAX_RANGE);
+		screenshots_H.SetMarkerStyle(8);
+		screenshots_H.SetMarkerSize (SCREENSHOTS_MARKERSIZES);
+		screenshots_H.SetMarkerColor(kOrange + 1);
 		for(int experimentNumber = 0; experimentNumber < NUM_EXPERIMENTS_PER_SETUP; ++experimentNumber)
 		{
 			int numUpdates = 0;
@@ -170,6 +192,20 @@ void physicsMain()
 				}
 				experimentNumber -= 1;
 				continue;
+			}
+			if(measurementPointIndex == 0 && SAVE_2D_SCREENSHOTS)
+			{
+				screenshots_H.Fill(electronHitPosition.x, electronHitPosition.z);
+				if(experimentNumber == 900)
+				{
+					gROOT -> SetBatch(kTRUE);
+					TCanvas screenshotsCanvas;
+					screenshotsCanvas.cd();
+					screenshots_H.Draw();
+					gErrorIgnoreLevel = kWarning;
+					screenshotsCanvas.Print(("screenshots_2/" + std::to_string(experimentNumber + 1) + ".eps").c_str());
+					gROOT -> SetBatch(kFALSE);
+				}
 			}
 			if(experimentNumber % (NUM_EXPERIMENTS_PER_SETUP / 100) == 0)
 			{
@@ -191,18 +227,24 @@ void physicsMain()
 	std::cout << "Average number of updates per experiment: \n";
 	for(auto i: range(totalNumUpdates.size()))
 		std::cout << "\t" << std::resetiosflags(std::ios::fixed) << std::setw(8) << totalNumUpdates[i] / static_cast<double>(NUM_EXPERIMENTS_PER_SETUP) << " with " << std::setw(5) << electronsAbsorbed[i] << " experiment fails because of electron absorbtion" << std::endl;
-	TCanvas canvas;
-	canvas.cd();
-	electronEnergyEndPositionsX_H.Draw("COLZ");
-	canvas.Print("matrix.eps");
-	for(auto electronHitPosition: electronPositionsX_V)
+	if(SAVE_POSITION_DISTRIBUTIONS)
 	{
-		TCanvas xPosCanvas(electronHitPosition -> GetName(), electronHitPosition -> GetTitle(), 200, 200, 400, 300);
-		xPosCanvas.cd();
-		electronHitPosition -> SetFillColor(38);
-		electronHitPosition -> Draw("BHIST");
-		xPosCanvas.Print((xPosCanvas.GetName() + std::string(".eps")).c_str());
+		TCanvas canvas;
+		canvas.cd();
+		electronEnergyEndPositionsX_H.Draw("COLZ");
+		canvas.Print("matrix.eps");
+		gROOT -> SetBatch(kTRUE);
+		for(auto electronHitPosition: electronPositionsX_V)
+		{
+			TCanvas xPosCanvas(electronHitPosition -> GetName(), electronHitPosition -> GetTitle(), 200, 200, 400, 300);
+			xPosCanvas.cd();
+			electronHitPosition -> SetFillColor(38);
+			electronHitPosition -> Draw("BHIST");
+			xPosCanvas.Print((xPosCanvas.GetName() + std::string(".eps")).c_str());
+		}
+		gROOT -> SetBatch(kFALSE);
 	}
+	std::cout << "\nThe program terminated succesfully (exit with Ctrl-c)." << std::endl;
 	theApp -> Run();
 }
 
@@ -225,12 +267,13 @@ void setElectronStartPositionVelocity(const int& numSetup)
 	// -2.5  -1.5  -0.5   0.5   1.5   2.5
 	//   p     p     p*****p     p     p
 	// Calc: -0.5 + uniform_rand(0, 1)
-	x = rand() / static_cast<double>(RAND_MAX) * 8.0f * PROTON_PROTON_DISTANCE - 4.0f * PROTON_PROTON_DISTANCE;
+	x = rand() / static_cast<double>(RAND_MAX) * (ELECTRON_START_X_POS_MAX - ELECTRON_START_X_POS_MIN) - ELECTRON_START_X_POS_MAX;
 	y = ELECTRON_START_PLANE_DISTANCE;
 	z = 0.0f;
 	vx = 0.0f;
 	vy = -ELECTRON_START_VELOCITIES[numSetup];
-	vz = 0.0f;
+    if(SAVE_2D_SCREENSHOTS) vz = rand() / static_cast<double>(RAND_MAX) * (ELECTRON_START_Z_POS_MAX - ELECTRON_START_Z_POS_MIN) + ELECTRON_START_Z_POS_MIN;
+    else                    vz = 0.0f;
 	electron -> setPosition(vec3( x,  y,  z));
 	electron -> setVelocity(vec3(vx, vy, vz));
 }
@@ -249,24 +292,64 @@ void initExperiment(const int& numSetup)
 	setElectronStartPositionVelocity(numSetup);
 }
 
-TH2D sampleElectron_path_H ("a",  "Electron path;x pos(bohr);y pos(bohr)",  
-	2000, END_POS_MIN_RANGE, END_POS_MAX_RANGE,
-	2000, -ELECTRON_END_PLANE_DISTANCE, ELECTRON_START_PLANE_DISTANCE);
-TH2D proton_positons_H("b",  "",  
-	2000, END_POS_MIN_RANGE, END_POS_MAX_RANGE,
-	2000, -ELECTRON_END_PLANE_DISTANCE, ELECTRON_START_PLANE_DISTANCE);
-
-// Contains calculations for the scattering processes
-const vec3 runExperiment(int& numUpdates, int& experimentSuccesful)
+void drawSampleElectronPaths(const int& numPaths)
 {
-	// static int numExp = 0;
-	proton_positons_H.SetMarkerStyle(8);
-	proton_positons_H.SetMarkerSize (1.5);
-	proton_positons_H.SetMarkerColor(kRed);
+	TH2D sampleElectron_path_H ("a",  "Electron path;x pos(bohr);y pos(bohr)",  
+		2000, END_POS_MIN_RANGE, END_POS_MAX_RANGE,
+		2000, -ELECTRON_END_PLANE_DISTANCE, ELECTRON_START_PLANE_DISTANCE);
+	TH2D proton_positons_H("b",  "",  
+		2000, END_POS_MIN_RANGE, END_POS_MAX_RANGE,
+		2000, -ELECTRON_END_PLANE_DISTANCE, ELECTRON_START_PLANE_DISTANCE);
 	for(const auto& protonPosition: PROTONPOSITIONS)
 	{
 		proton_positons_H.Fill(protonPosition, 0);
 	}
+	int numUpdates = 0;
+	for(int pathIndex = 0; pathIndex < numPaths; pathIndex++)
+	{
+		initExperiment(0);
+		while(1)
+		{
+			numUpdates++;
+			auto& electron = ChargedParticle::chargedParticleCollection[NUMBER_OF_PROTONS];
+			electron -> calculateForceFromChargedParticleCollection(ChargedParticle::chargedParticleCollection);
+			electron -> update(DT_STEP);
+			const vec3& electronPosition = electron -> getPosition();
+			if(electronPosition.y < -ELECTRON_END_PLANE_DISTANCE)
+			{
+				break;
+			}
+			if(NUM_UPDATES_BEFORE_ABSORBTION_TESTING <= numUpdates)
+			{
+				// Check if the electron is absorbed
+				if(numUpdates % NUM_ITERATIONS_BETWEEN_ABS_TESTS == 0)
+				{
+					if(electron -> calculatePotentialEnergy() + electron -> calculateKineticEnergy() < 0)
+					{
+						std::cout << "Warning: one of the sample electron paths has an absorbed electron." << std::endl;
+						break;
+					}
+				}
+			}
+			sampleElectron_path_H.Fill(electronPosition.x, electronPosition.y);
+		}
+		clearExperiment();
+	}
+	proton_positons_H.SetMarkerStyle(8);
+	proton_positons_H.SetMarkerSize (1.5);
+	proton_positons_H.SetMarkerColor(kRed);
+	TCanvas canvas;
+	canvas.cd();
+	sampleElectron_path_H.Draw();
+	proton_positons_H.Draw("SAME");
+	canvas.Print("Paths.eps");
+	std::cout << "Done." << std::endl;
+	std::cin.get();
+}
+
+// Contains calculations for the scattering processes
+const vec3 runExperiment(int& numUpdates, int& experimentSuccesful)
+{
 	numUpdates = 0;
 	while(1)
 	{
@@ -277,16 +360,6 @@ const vec3 runExperiment(int& numUpdates, int& experimentSuccesful)
 		const vec3& electronPosition = electron -> getPosition();
 		if(electronPosition.y < -ELECTRON_END_PLANE_DISTANCE)
 		{
-			// if(numExp++ == 10.0)
-			// {
-			// 	TCanvas canvas;
-			// 	canvas.cd();
-			// 	sampleElectron_path_H.Draw();
-			// 	proton_positons_H.Draw("SAME");
-			// 	canvas.Print("a.eps");
-			// 	std::cout << "Done." << std::endl;
-			// 	std::cin.get();
-			// }
 			experimentSuccesful = 1; // No errors
 			return electronPosition;
 		}
@@ -305,7 +378,6 @@ const vec3 runExperiment(int& numUpdates, int& experimentSuccesful)
 				}
 			}
 		}
-		sampleElectron_path_H.Fill(electronPosition.x, electronPosition.y);
 	}
 }
 

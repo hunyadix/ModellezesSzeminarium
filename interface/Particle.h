@@ -122,6 +122,10 @@ class Particle: public Drawable
 		}
 		virtual void display() const
 		{
+			// This creates a sphere:
+			// Starts with a regular solid (icosahedron), 
+			// then divides the triangles on its faces,
+			// then moves them to equal distance from the central point (normalizes and scalest the vertex as vector)
 			glColor3f(color.x, color.y, color.z);
 			glPushMatrix();
 			glTranslatef(position.x, position.y, position.z);
@@ -145,7 +149,8 @@ class Particle: public Drawable
 					&vdata[tindices[i][1]][0],
 					&vdata[tindices[i][2]][0], (long)(3)); 
 			}
-			// glutSolidSphere(radius, 10, 10);
+			// Simple glut version, requires glut
+			// glutSolidSphere(radius, 10, 10); 
 			glPopMatrix();
 		}
 		virtual void calculateForceFromPotential(const vec3& potential) = 0;

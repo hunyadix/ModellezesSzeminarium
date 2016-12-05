@@ -8,6 +8,15 @@
 *.gch
 *.pch
 
+# Images, videos
+*.jpg
+*.png
+*.eps
+*.ps
+*.mp4
+*.mkv
+*.avi
+
 # Compiled Dynamic libraries
 *.so
 *.dylib
